@@ -1,0 +1,10 @@
+
+openai
+pandas
+numpy
+flask
+flask-cors
+matplotlib
+scipy
+python-dotenv
+

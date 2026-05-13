@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电商运营异常诊断系统 - Agent协作可视化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            border-radius: 12px;
+        }
+        .agent-card {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            transition: all 0.3s ease;
+        }
+        .agent-card.active {
+            border-color: #22d3ee;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+        }
+        .agent-card.completed {
+            border-color: #4ade80;
+        }
+        .agent-card.error {
+            border-color: #ef4444;
+        }
+        .flow-line {
+            stroke: rgba(99, 102, 241, 0.4);
+            stroke-width: 2;
+            fill: none;
+        }
+        .flow-line.active {
+            stroke: #22d3ee;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
+        }
+        .log-entry {
+            font-family: 'Consolas', 'Microsoft YaHei', monospace;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+        .log-info { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .log-success { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .log-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .log-process { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+        .chart-container { position: relative; height: 140px; }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+        .upload-area {
+            border: 2px dashed rgba(99, 102, 241, 0.4);
+            background: rgba(30, 41, 59, 0.4);
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: rgba(30, 41, 59, 0.6);
+        }
+        .upload-area.dragover {
+            border-color: #22d3ee;
+            background: rgba(34, 211, 238, 0.1);
+        }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(71, 85, 105, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.5); border-radius: 3px; }
+    </style>
+</head>
+<body class="text-gray-100">
+    <div class="min-h-screen p-4">
+        <!-- Header -->
+        <header class="text-center mb-4">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                电商运营异常诊断系统
+            </h1>
+            <p class="text-gray-400 text-xs mt-1">多Agent协作 · 智能监控 · 异常检测 · 归因分析</p>
+        </header>
+
+        <!-- Agent Workflow Visualization -->
+        <div class="card p-4 mb-4">
+            <h2 class="text-sm font-semibold text-cyan-400 mb-4 flex items-center">
+                <span class="w-2 h-2 bg-cyan-400 rounded-full mr-2 pulse"></span>
+                Agent协作流程
+            </h2>
+            
+            <!-- Agent Flow Diagram -->
+            <div class="relative mb-4">
+                <svg class="w-full h-24" viewBox="0 0 800 100">
+                    <path id="line1" class="flow-line" d="M 100 50 L 250 50" />
+                    <path id="line2" class="flow-line" d="M 300 50 L 450 50" />
+                    <path id="line3" class="flow-line" d="M 500 50 L 650 50" />
+                    
+                    <g id="agent1" class="agent-node" transform="translate(50, 25)">
+                        <rect width="100" height="50" rx="8" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2"/>
+                        <text x="50" y="20" text-anchor="middle" fill="#60a5fa" font-size="10" font-weight="bold">数据监控Agent</text>
+                        <text x="50" y="35" text-anchor="middle" fill="#94a3b8" font-size="8">数据加载与聚合</text>
+                    </g>
+                    
+                    <g id="agent2" class="agent-node" transform="translate(250, 25)">
+                        <rect width="100" height="50" rx="8" fill="rgba(168, 85, 247, 0.2)" stroke="#a855f7" stroke-width="2"/>
+                        <text x="50" y="20" text-anchor="middle" fill="#c084fc" font-size="10" font-weight="bold">异常检测Agent</text>
+                        <text x="50" y="35" text-anchor="middle" fill="#94a3b8" font-size="8">3σ / 同比 / 环比</text>
+                    </g>
+                    
+                    <g id="agent3" class="agent-node" transform="translate(450, 25)">
+                        <rect width="100" height="50" rx="8" fill="rgba(34, 211, 238, 0.2)" stroke="#22d3ee" stroke-width="2"/>
+                        <text x="50" y="20" text-anchor="middle" fill="#22d3ee" font-size="10" font-weight="bold">归因分析Agent</text>
+                        <text x="50" y="35" text-anchor="middle" fill="#94a3b8" font-size="8">多维度下钻分析</text>
+                    </g>
+                    
+                    <g id="agent4" class="agent-node" transform="translate(650, 25)">
+                        <rect width="100" height="50" rx="8" fill="rgba(34, 197, 94, 0.2)" stroke="#4ade80" stroke-width="2"/>
+                        <text x="50" y="20" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="bold">建议生成Agent</text>
+                        <text x="50" y="35" text-anchor="middle" fill="#94a3b8" font-size="8">LLM智能建议</text>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Agent Status Cards -->
+            <div class="grid grid-cols-4 gap-3 mb-4">
+                <div id="status1" class="agent-card rounded-lg p-3 text-center">
+                    <div class="text-xs text-blue-400 font-bold mb-1">数据监控Agent</div>
+                    <div class="status-icon text-lg mb-1">⏳</div>
+                    <div class="status-text text-xs text-gray-400">等待中</div>
+                </div>
+                <div id="status2" class="agent-card rounded-lg p-3 text-center">
+                    <div class="text-xs text-purple-400 font-bold mb-1">异常检测Agent</div>
+                    <div class="status-icon text-lg mb-1">⏳</div>
+                    <div class="status-text text-xs text-gray-400">等待中</div>
+                </div>
+                <div id="status3" class="agent-card rounded-lg p-3 text-center">
+                    <div class="text-xs text-cyan-400 font-bold mb-1">归因分析Agent</div>
+                    <div class="status-icon text-lg mb-1">⏳</div>
+                    <div class="status-text text-xs text-gray-400">等待中</div>
+                </div>
+                <div id="status4" class="agent-card rounded-lg p-3 text-center">
+                    <div class="text-xs text-green-400 font-bold mb-1">建议生成Agent</div>
+                    <div class="status-icon text-lg mb-1">⏳</div>
+                    <div class="status-text text-xs text-gray-400">等待中</div>
+                </div>
+            </div>
+
+            <!-- Execution Log -->
+            <div class="bg-black/30 rounded-lg p-3 max-h-40 overflow-y-auto" id="executionLog">
+                <div class="text-xs text-gray-500 mb-2">[系统] 准备就绪，等待开始诊断...</div>
+            </div>
+        </div>
+
+        <!-- Metrics & Charts -->
+        <div class="grid grid-cols-6 gap-2 mb-4" id="metricsGrid"></div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="card p-3">
+                <h3 class="text-xs font-semibold text-gray-400 mb-2">GMV趋势</h3>
+                <div class="chart-container"><canvas id="gmvChart"></canvas></div>
+            </div>
+            <div class="card p-3">
+                <h3 class="text-xs font-semibold text-gray-400 mb-2">订单量趋势</h3>
+                <div class="chart-container"><canvas id="orderChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="card p-3">
+                <h3 class="text-xs font-semibold text-red-400 mb-2">异常警报</h3>
+                <div id="anomalyList" class="space-y-2 max-h-32 overflow-y-auto text-xs"></div>
+            </div>
+            <div class="card p-3 col-span-2">
+                <h3 class="text-xs font-semibold text-blue-400 mb-2">根因分析</h3>
+                <div id="rootCauseList" class="space-y-2 max-h-32 overflow-y-auto text-xs"></div>
+            </div>
+        </div>
+
+        <!-- AI Suggestions -->
+        <div class="card p-3">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-semibold text-purple-400">智能建议</h3>
+                <button id="runDiagnosis" class="btn-primary px-3 py-1 rounded text-xs font-medium">
+                    ▶ 运行诊断
+                </button>
+            </div>
+            <div id="suggestions" class="text-gray-400 text-xs leading-relaxed max-h-32 overflow-y-auto">
+                点击"运行诊断"查看多Agent协作分析过程...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gmvChart, orderChart;
+        const executionLog = document.getElementById('executionLog');
+
+        // 模拟数据生成
+        const mockData = {
+            latest_summary: {
+                gmv: 1256800,
+                order_count: 8560,
+                refund_rate: 0.032,
+                conversion_rate: 0.045,
+                uv: 189200,
+                pv: 526800
+            },
+            timeseries: []
+        };
+
+        // 生成时间序列数据
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(2024, 10, 1 + i);
+            const gmv = 1000000 + Math.random() * 500000 + (i > 20 ? -300000 : 0);
+            const orders = 8000 + Math.random() * 2000 + (i > 20 ? -2000 : 0);
+            mockData.timeseries.push({
+                date: date.toISOString().slice(0, 10),
+                gmv: Math.round(gmv),
+                order_count: Math.round(orders)
+            });
+        }
+
+        const mockAnomalies = [
+            {
+                metric: 'GMV',
+                anomalies: [
+                    { method: '3σ', count: 2 },
+                    { method: '同比', count: 1 }
+                ]
+            },
+            {
+                metric: '订单量',
+                anomalies: [
+                    { method: '环比', count: 1 }
+                ]
+            }
+        ];
+
+        const mockRootCauses = [
+            {
+                dimension: 'category',
+                value: '电子产品',
+                change_rate: -0.25,
+                contribution: 0.45
+            },
+            {
+                dimension: 'region',
+                value: '华东地区',
+                change_rate: -0.18,
+                contribution: 0.28
+            },
+            {
+                dimension: 'category',
+                value: '服装配饰',
+                change_rate: -0.12,
+                contribution: 0.15
+            }
+        ];
+
+        const mockSuggestions = `【诊断结果与建议】
+
+1. 【核心问题】近期GMV和订单量出现明显下滑，主要异常点集中在最近5天
+2. 【根因分析】
+   - 电子产品品类贡献了45%的下滑，需重点关注该品类的促销策略
+   - 华东地区环比下降18%，建议排查该区域的物流和运营问题
+3. 【业务建议】
+   - 针对电子产品推出限时特惠活动，激活用户购买欲
+   - 优化华东地区的配送时效，提升用户体验
+   - 增加短视频投放，重点推广高潜力新品
+   - 加强客服团队培训，提高转化率
+
+建议24小时内跟进执行，持续监控数据变化。`;
+
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            executionLog.appendChild(entry);
+            executionLog.scrollTop = executionLog.scrollHeight;
+        }
+
+        function setAgentStatus(agentNum, status, message) {
+            const card = document.getElementById(`status${agentNum}`);
+            const icon = card.querySelector('.status-icon');
+            const text = card.querySelector('.status-text');
+            const svgNode = document.getElementById(`agent${agentNum}`);
+            const line = document.getElementById(`line${agentNum}`);
+
+            card.className = 'agent-card rounded-lg p-3 text-center ' + status;
+            
+            const icons = { waiting: '⏳', running: '⚡', completed: '✅', error: '❌' };
+            icon.textContent = icons[status] || '⏳';
+            text.textContent = message;
+
+            if (status === 'running') {
+                svgNode.querySelector('rect').setAttribute('stroke', '#22d3ee');
+                if (line) line.classList.add('active');
+            } else if (status === 'completed') {
+                svgNode.querySelector('rect').setAttribute('stroke', '#4ade80');
+                if (line) line.classList.remove('active');
+            } else if (status === 'error') {
+                svgNode.querySelector('rect').setAttribute('stroke', '#ef4444');
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function runWithVisualization() {
+            [1, 2, 3, 4].forEach(i => setAgentStatus(i, 'waiting', '等待中'));
+            executionLog.innerHTML = '';
+            addLog('开始多Agent协作诊断流程...', 'process');
+
+            try {
+                // Step 1: DataMonitorAgent
+                setAgentStatus(1, 'running', '加载数据中...');
+                addLog('数据监控Agent：正在加载电商数据...', 'process');
+                await sleep(800);
+                
+                renderMetrics(mockData.latest_summary);
+                renderCharts(mockData.timeseries);
+                
+                setAgentStatus(1, 'completed', `已加载${mockData.timeseries.length}天数据`);
+                addLog(`数据监控Agent：成功加载${mockData.timeseries.length}天数据`, 'success');
+
+                // Step 2: AnomalyDetectionAgent
+                setAgentStatus(2, 'running', '检测中...');
+                addLog('异常检测Agent：执行3σ原则检测...', 'process');
+                await sleep(600);
+                addLog('异常检测Agent：执行同比分析...', 'process');
+                await sleep(600);
+                addLog('异常检测Agent：执行环比分析...', 'process');
+                
+                renderAnomalies(mockAnomalies);
+                
+                const anomalyCount = mockAnomalies.reduce((sum, item) => 
+                    sum + item.anomalies.reduce((s, a) => s + a.count, 0), 0);
+                setAgentStatus(2, 'completed', `发现${anomalyCount}个异常`);
+                addLog(`异常检测Agent：发现${anomalyCount}个数据异常`, 'success');
+
+                // Step 3: AttributionAgent
+                setAgentStatus(3, 'running', '分析中...');
+                addLog('归因分析Agent：按品类维度下钻分析...', 'process');
+                await sleep(800);
+                addLog('归因分析Agent：按区域维度下钻分析...', 'process');
+                await sleep(800);
+                addLog('归因分析Agent：计算各维度贡献度...', 'process');
+
+                // Step 4: SuggestionAgent
+                setAgentStatus(4, 'running', '生成建议...');
+                addLog('建议生成Agent：调用大语言模型API...', 'process');
+                await sleep(1000);
+                
+                renderRootCauses(mockRootCauses);
+                document.getElementById('suggestions').textContent = mockSuggestions;
+                
+                setAgentStatus(3, 'completed', `${mockRootCauses.length}个根因`);
+                addLog(`归因分析Agent：定位${mockRootCauses.length}个根因`, 'success');
+                
+                setAgentStatus(4, 'completed', '建议已生成');
+                addLog('建议生成Agent：生成业务优化建议', 'success');
+                addLog('诊断流程完成！', 'success');
+
+            } catch (error) {
+                addLog(`错误：${error.message}`, 'error');
+                [1, 2, 3, 4].forEach(i => {
+                    if (document.getElementById(`status${i}`).classList.contains('running')) {
+                        setAgentStatus(i, 'error', '失败');
+                    }
+                });
+            }
+        }
+
+        function renderMetrics(summary) {
+            const metrics = [
+                { label: 'GMV', value: `¥${(summary.gmv / 10000).toFixed(1)}万`, color: 'text-green-400' },
+                { label: '订单量', value: summary.order_count.toLocaleString(), color: 'text-blue-400' },
+                { label: '退款率', value: `${(summary.refund_rate * 100).toFixed(1)}%`, color: 'text-red-400' },
+                { label: '转化率', value: `${(summary.conversion_rate * 100).toFixed(1)}%`, color: 'text-yellow-400' },
+                { label: 'UV', value: (summary.uv / 1000).toFixed(1) + 'k', color: 'text-purple-400' },
+                { label: 'PV', value: (summary.pv / 1000).toFixed(1) + 'k', color: 'text-pink-400' }
+            ];
+
+            document.getElementById('metricsGrid').innerHTML = metrics.map(m => `
+                <div class="card p-2 text-center">
+                    <div class="text-xs text-gray-500">${m.label}</div>
+                    <div class="text-sm font-bold ${m.color}">${m.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderCharts(timeseries) {
+            const dates = timeseries.map(d => d.date.slice(5));
+            const gmvData = timeseries.map(d => d.gmv);
+            const orderData = timeseries.map(d => d.order_count);
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 5 } },
+                    y: { grid: { color: 'rgba(71, 85, 105, 0.2)' }, ticks: { color: '#64748b', font: { size: 9 } } }
+                },
+                elements: { line: { tension: 0.4, borderWidth: 1.5 }, point: { radius: 0 } }
+            };
+
+            if (gmvChart) gmvChart.destroy();
+            if (orderChart) orderChart.destroy();
+
+            gmvChart = new Chart(document.getElementById('gmvChart'), {
+                type: 'line',
+                data: { labels: dates, datasets: [{ data: gmvData, borderColor: '#4ade80', backgroundColor: 'rgba(74, 222, 128, 0.1)', fill: true }] },
+                options: options
+            });
+
+            orderChart = new Chart(document.getElementById('orderChart'), {
+                type: 'line',
+                data: { labels: dates, datasets: [{ data: orderData, borderColor: '#facc15', backgroundColor: 'rgba(250, 204, 21, 0.1)', fill: true }] },
+                options: options
+            });
+        }
+
+        function renderAnomalies(summary) {
+            const container = document.getElementById('anomalyList');
+            if (!summary || summary.length === 0) {
+                container.innerHTML = '<div class="text-gray-500 text-center py-4">暂无异常</div>';
+                return;
+            }
+            container.innerHTML = summary.slice(0, 3).map(item => `
+                <div class="bg-red-900/30 border-l-2 border-red-400 p-2 rounded">
+                    <div class="text-red-300 font-medium">${item.metric}</div>
+                    <div class="text-gray-400">${item.anomalies.map(a => `${a.method}: ${a.count}个`).join(', ')}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderRootCauses(causes) {
+            const container = document.getElementById('rootCauseList');
+            if (!causes || causes.length === 0) {
+                container.innerHTML = '<div class="text-gray-500 text-center py-4">暂无根因</div>';
+                return;
+            }
+            container.innerHTML = causes.slice(0, 3).map(cause => `
+                <div class="bg-blue-900/30 border-l-2 border-blue-400 p-2 rounded">
+                    <div class="flex justify-between">
+                        <span class="text-blue-300">${cause.dimension === 'category' ? '品类' : '区域'}: ${cause.value}</span>
+                        <span class="text-red-400">${(cause.change_rate * 100).toFixed(1)}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('runDiagnosis').addEventListener('click', runWithVisualization);
+
+        // Initial load
+        renderMetrics(mockData.latest_summary);
+        renderCharts(mockData.timeseries);
+    </script>
+</body>
+</html>
