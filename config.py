@@ -5,9 +5,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
-API_KEY = "sk-krtluesocapckkinfxtugpnoqtbdycfxlkmehipaiqrwbrgy"
-API_BASE = "https://api.siliconflow.cn/v1"
-MODEL = "Qwen/Qwen2.5-7B-Instruct"
+API_KEY = os.getenv("DEEPSEEK_API_KEY", "your-api-key-here")
+API_BASE = os.getenv("API_BASE", "https://api.deepseek.com/v1")
+MODEL = os.getenv("MODEL_NAME", "deepseek-chat")
+
+# LangChain 配置
+LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false")
+LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "ecommerce-diagnosis-agent")
 
 METRICS = [
     "gmv",

@@ -209,80 +209,7 @@
         const executionLog = document.getElementById('executionLog');
 
         // 模拟数据生成
-        const mockData = {
-            latest_summary: {
-                gmv: 1256800,
-                order_count: 8560,
-                refund_rate: 0.032,
-                conversion_rate: 0.045,
-                uv: 189200,
-                pv: 526800
-            },
-            timeseries: []
-        };
-
-        // 生成时间序列数据
-        for (let i = 0; i < 30; i++) {
-            const date = new Date(2024, 10, 1 + i);
-            const gmv = 1000000 + Math.random() * 500000 + (i > 20 ? -300000 : 0);
-            const orders = 8000 + Math.random() * 2000 + (i > 20 ? -2000 : 0);
-            mockData.timeseries.push({
-                date: date.toISOString().slice(0, 10),
-                gmv: Math.round(gmv),
-                order_count: Math.round(orders)
-            });
-        }
-
-        const mockAnomalies = [
-            {
-                metric: 'GMV',
-                anomalies: [
-                    { method: '3σ', count: 2 },
-                    { method: '同比', count: 1 }
-                ]
-            },
-            {
-                metric: '订单量',
-                anomalies: [
-                    { method: '环比', count: 1 }
-                ]
-            }
-        ];
-
-        const mockRootCauses = [
-            {
-                dimension: 'category',
-                value: '电子产品',
-                change_rate: -0.25,
-                contribution: 0.45
-            },
-            {
-                dimension: 'region',
-                value: '华东地区',
-                change_rate: -0.18,
-                contribution: 0.28
-            },
-            {
-                dimension: 'category',
-                value: '服装配饰',
-                change_rate: -0.12,
-                contribution: 0.15
-            }
-        ];
-
-        const mockSuggestions = `【诊断结果与建议】
-
-1. 【核心问题】近期GMV和订单量出现明显下滑，主要异常点集中在最近5天
-2. 【根因分析】
-   - 电子产品品类贡献了45%的下滑，需重点关注该品类的促销策略
-   - 华东地区环比下降18%，建议排查该区域的物流和运营问题
-3. 【业务建议】
-   - 针对电子产品推出限时特惠活动，激活用户购买欲
-   - 优化华东地区的配送时效，提升用户体验
-   - 增加短视频投放，重点推广高潜力新品
-   - 加强客服团队培训，提高转化率
-
-建议24小时内跟进执行，持续监控数据变化。`;
+        const API_BASE = '';
 
         function addLog(message, type = 'info') {
             const entry = document.createElement('div');
@@ -326,59 +253,52 @@
             addLog('开始多Agent协作诊断流程...', 'process');
 
             try {
-                // Step 1: DataMonitorAgent
+                // Step 1: 加载数据
                 setAgentStatus(1, 'running', '加载数据中...');
                 addLog('数据监控Agent：正在加载电商数据...', 'process');
-                await sleep(800);
-                
-                renderMetrics(mockData.latest_summary);
-                renderCharts(mockData.timeseries);
-                
-                setAgentStatus(1, 'completed', `已加载${mockData.timeseries.length}天数据`);
-                addLog(`数据监控Agent：成功加载${mockData.timeseries.length}天数据`, 'success');
+                const dataResp = await fetch(API_BASE + '/api/data');
+                const dataJson = await dataResp.json();
 
-                // Step 2: AnomalyDetectionAgent
+                renderMetrics(dataJson.latest_summary);
+                renderCharts(dataJson.timeseries);
+
+                setAgentStatus(1, 'completed', `已加载${dataJson.timeseries.length}天数据`);
+                addLog(`数据监控Agent：成功加载${dataJson.timeseries.length}天数据`, 'success');
+
+                // Step 2-4: 运行诊断
                 setAgentStatus(2, 'running', '检测中...');
-                addLog('异常检测Agent：执行3σ原则检测...', 'process');
-                await sleep(600);
-                addLog('异常检测Agent：执行同比分析...', 'process');
-                await sleep(600);
-                addLog('异常检测Agent：执行环比分析...', 'process');
-                
-                renderAnomalies(mockAnomalies);
-                
-                const anomalyCount = mockAnomalies.reduce((sum, item) => 
+                addLog('异常检测Agent：执行3σ/同比/环比检测...', 'process');
+
+                setAgentStatus(3, 'running', '分析中...');
+                setAgentStatus(4, 'running', '生成建议中...');
+
+                const diagResp = await fetch(API_BASE + '/api/run-diagnosis');
+                const diagJson = await diagResp.json();
+
+                // 异常检测结果
+                renderAnomalies(diagJson.anomaly_summary);
+                const anomalyCount = diagJson.anomaly_summary.reduce((sum, item) =>
                     sum + item.anomalies.reduce((s, a) => s + a.count, 0), 0);
                 setAgentStatus(2, 'completed', `发现${anomalyCount}个异常`);
                 addLog(`异常检测Agent：发现${anomalyCount}个数据异常`, 'success');
 
-                // Step 3: AttributionAgent
-                setAgentStatus(3, 'running', '分析中...');
-                addLog('归因分析Agent：按品类维度下钻分析...', 'process');
-                await sleep(800);
-                addLog('归因分析Agent：按区域维度下钻分析...', 'process');
-                await sleep(800);
-                addLog('归因分析Agent：计算各维度贡献度...', 'process');
+                // 归因分析结果
+                const rootCauses = diagJson.attribution.root_causes || [];
+                renderRootCauses(rootCauses);
+                setAgentStatus(3, 'completed', `${rootCauses.length}个根因`);
+                addLog(`归因分析Agent：定位${rootCauses.length}个根因`, 'success');
 
-                // Step 4: SuggestionAgent
-                setAgentStatus(4, 'running', '生成建议...');
-                addLog('建议生成Agent：调用大语言模型API...', 'process');
-                await sleep(1000);
-                
-                renderRootCauses(mockRootCauses);
-                document.getElementById('suggestions').textContent = mockSuggestions;
-                
-                setAgentStatus(3, 'completed', `${mockRootCauses.length}个根因`);
-                addLog(`归因分析Agent：定位${mockRootCauses.length}个根因`, 'success');
-                
+                // LLM建议
+                document.getElementById('suggestions').textContent = diagJson.suggestions || '暂无建议';
                 setAgentStatus(4, 'completed', '建议已生成');
-                addLog('建议生成Agent：生成业务优化建议', 'success');
+                addLog('建议生成Agent：LLM生成业务优化建议', 'success');
                 addLog('诊断流程完成！', 'success');
 
             } catch (error) {
                 addLog(`错误：${error.message}`, 'error');
                 [1, 2, 3, 4].forEach(i => {
-                    if (document.getElementById(`status${i}`).classList.contains('running')) {
+                    const el = document.getElementById(`status${i}`);
+                    if (el && el.classList.contains('running')) {
                         setAgentStatus(i, 'error', '失败');
                     }
                 });
@@ -467,9 +387,17 @@
 
         document.getElementById('runDiagnosis').addEventListener('click', runWithVisualization);
 
-        // Initial load
-        renderMetrics(mockData.latest_summary);
-        renderCharts(mockData.timeseries);
+        // 页面加载时从后端获取真实数据
+        (async function initLoad() {
+            try {
+                const resp = await fetch(API_BASE + '/api/data');
+                const data = await resp.json();
+                renderMetrics(data.latest_summary);
+                renderCharts(data.timeseries);
+            } catch (e) {
+                console.log('初始加载失败，请确认后端已启动:', e);
+            }
+        })();
     </script>
 </body>
 </html>

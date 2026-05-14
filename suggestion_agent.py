@@ -1,54 +1,90 @@
-
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
 import config
 
+
 class SuggestionAgent:
+    """基于 LangChain 的智能建议生成 Agent"""
+
     def __init__(self):
-        self.client = OpenAI(
-            api_key=config.API_KEY,
-            base_url=config.API_BASE
+        self.llm = ChatOpenAI(
+            openai_api_key=config.API_KEY,
+            base_url=config.API_BASE,
+            model=config.MODEL,
+            temperature=0.7,
+            max_tokens=2000,
         )
-        self.model = config.MODEL
-    
+
+        self.system_prompt = SystemMessagePromptTemplate.from_template(
+            "你是专业的电商运营分析师，擅长基于数据异常和归因分析结果提供可落地的业务建议。请始终用中文回复。"
+        )
+
+        self.human_prompt = HumanMessagePromptTemplate.from_template(
+            """请基于以下电商异常诊断信息，提供专业的业务建议：
+
+[异常概要]
+{anomaly_summary}
+
+[归因分析]
+{attribution_report}
+
+请提供以下内容：
+1. 问题诊断总结
+2. 针对性的业务优化建议（分点列出，可落地）
+3. 长期运营策略建议"""
+        )
+
+        self.chat_prompt = ChatPromptTemplate.from_messages(
+            [self.system_prompt, self.human_prompt]
+        )
+
+        self.chain = self.chat_prompt | self.llm | StrOutputParser()
+
     def generate_suggestions(self, anomaly_summary, attribution_report):
-        prompt = self._build_prompt(anomaly_summary, attribution_report)
-        
+        summary_text = self._format_anomaly_summary(anomaly_summary)
+        report_text = self._format_attribution_report(attribution_report)
+
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a professional e-commerce operations analyst, good at providing actionable business suggestions based on data anomalies and attribution analysis results."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=2000
-            )
-            return response.choices[0].message.content
+            result = self.chain.invoke({
+                "anomaly_summary": summary_text,
+                "attribution_report": report_text,
+            })
+            return result
         except Exception as e:
-            return f"Suggestion generation failed: {e}\n\nRecommended default strategy: Conduct targeted optimization for anomalous dimensions, increase traffic investment and promotional activities."
-    
-    def _build_prompt(self, anomaly_summary, attribution_report):
-        prompt = """Please provide professional business suggestions based on the following e-commerce anomaly diagnosis information:
+            return (
+                f"建议生成失败: {e}\n\n"
+                "推荐默认策略：针对异常维度进行定向优化，加大流量投入和促销活动力度。"
+            )
 
-[Anomaly Overview]
-"""
+    def _format_anomaly_summary(self, anomaly_summary):
+        if not anomaly_summary:
+            return "无异常数据"
+
+        lines = []
         for item in anomaly_summary:
-            prompt += f"- {item['metric']}: "
-            for anom in item['anomalies']:
-                prompt += f"{anom['method']} detected {anom['count']} anomalies; "
-            prompt += "\n"
-        
-        prompt += "\n[Attribution Analysis]\n"
-        if attribution_report and "root_causes" in attribution_report:
-            for cause in attribution_report["root_causes"][:3]:
-                prompt += f"- {cause['dimension']}: {cause['value']}, Change: {cause['change']:.2f}, Change Rate: {cause['change_rate']:.2%}\n"
-        
-        prompt += """
+            metric = item.get("metric", "未知指标")
+            anomalies = item.get("anomalies", [])
+            for anom in anomalies:
+                method = anom.get("method", "")
+                count = anom.get("count", 0)
+                lines.append(f"- {metric}: {method} 检测到 {count} 个异常")
+        return "\n".join(lines) if lines else "无异常数据"
 
-Please provide the following:
-1. Problem diagnosis summary
-2. Targeted business optimization suggestions (listed in points, actionable)
-3. Long-term operation strategy suggestions
-"""
-        return prompt
+    def _format_attribution_report(self, attribution_report):
+        if not attribution_report:
+            return "无归因分析数据"
 
+        lines = []
+        root_causes = attribution_report.get("root_causes", [])
+        if root_causes:
+            for cause in root_causes[:3]:
+                dim = cause.get("dimension", "")
+                val = cause.get("value", "")
+                change = cause.get("change", 0)
+                rate = cause.get("change_rate", 0)
+                lines.append(
+                    f"- {dim}: {val}, 变化量: {change:.2f}, 变化率: {rate:.2%}"
+                )
+        return "\n".join(lines) if lines else "无归因分析数据"
