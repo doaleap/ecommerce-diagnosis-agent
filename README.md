@@ -10,6 +10,10 @@
 - **智能建议**：基于 LLM 生成可落地的业务策略建议
 - **A/B 测试**：独立模块，量化验证 Agent 系统干预效果
 - **可视化大屏**：实时展示运营数据和诊断结果
+- 
+## 运行与演示
+
+本项目是一个**本地运行**的Web应用，无需部署至公网。启动后，所有数据处理和Agent调用均在您自己的电脑上完成。
 
 ## 系统架构
 
@@ -68,6 +72,24 @@ python app.py
 python ab_test.py
 ```
 
+### 一键诊断流程
+
+1.  **启动服务**：在项目根目录执行 `python app.py`
+2.  **访问界面**：浏览器打开 `http://localhost:8000`
+3.  **执行诊断**：点击 **“一键诊断”** 按钮，你将看到完整的4-Agent协作流程：
+
+  <img width="1346" height="870" alt="image" src="https://github.com/user-attachments/assets/af11f92b-9ab8-4866-ba88-090caee0bbc5" />
+
+ *（上图：系统启动，4个Agent按流水线顺序执行）*
+
+  <img width="1378" height="344" alt="image" src="https://github.com/user-attachments/assets/13b2cc55-ec58-4813-bfa8-ad9a1698ea0f" />
+
+ *（上图：归因Agent定位根因，如“东部地区-服装品类”贡献了主要降幅）*
+
+4.  **获取AI建议**：诊断流程最后一步，系统会调用 **DeepSeek大模型API**，基于异常检测和归因结果，自动生成结构化的业务策略建议。
+<img width="1338" height="372" alt="image" src="https://github.com/user-attachments/assets/26eb2654-48b3-4f38-a968-a71e79e247ea" />
+    *（上图：LLM返回包含“问题诊断总结”、“短期优化建议”、“长期策略”的完整报告）*
+    
 ## 项目结构
 
 ```
@@ -96,16 +118,4 @@ ecommerce-diagnosis-agent/
 | POST | `/api/suggestions` | 获取 LLM 智能建议 |
 | GET | `/api/run-diagnosis` | 一键运行 LangChain 诊断流水线 |
 | GET | `/api/langchain-diagnosis` | LangChain 编排诊断（含流水线信息） |
-
-## 演示
-这是个没有部署的项目，因此只能在你自己本地跑
-点击诊断
-<img width="1420" height="1482" alt="image" src="https://github.com/user-attachments/assets/17eeaaaf-d807-4ef8-8315-a05f000f909a" />
-四个agent就会开始协作
-<img width="1420" height="1242" alt="image" src="https://github.com/user-attachments/assets/6cfc9241-a824-4484-a4f6-ba779b7308d1" />
-<img width="1396" height="794" alt="image" src="https://github.com/user-attachments/assets/465f9266-11f2-4196-adbd-05a8bae4ef3c" />
-会调用deepseek的大模型llm进行业务建议提出
-<img width="1366" height="382" alt="image" src="https://github.com/user-attachments/assets/95db406f-299e-4062-a126-bbde1c7d0a92" />
-
-
 
