@@ -96,3 +96,16 @@ ecommerce-diagnosis-agent/
 | POST | `/api/suggestions` | 获取 LLM 智能建议 |
 | GET | `/api/run-diagnosis` | 一键运行 LangChain 诊断流水线 |
 | GET | `/api/langchain-diagnosis` | LangChain 编排诊断（含流水线信息） |
+
+## 演示
+这是个没有部署的项目，因此只能在你自己本地跑
+点击诊断
+<img width="1420" height="1482" alt="image" src="https://github.com/user-attachments/assets/17eeaaaf-d807-4ef8-8315-a05f000f909a" />
+四个agent就会开始协作
+<img width="1420" height="1242" alt="image" src="https://github.com/user-attachments/assets/6cfc9241-a824-4484-a4f6-ba779b7308d1" />
+<img width="1396" height="794" alt="image" src="https://github.com/user-attachments/assets/465f9266-11f2-4196-adbd-05a8bae4ef3c" />
+会调用deepseek的大模型llm进行业务建议提出
+<img width="1366" height="382" alt="image" src="https://github.com/user-attachments/assets/95db406f-299e-4062-a126-bbde1c7d0a92" />
+
+
+
